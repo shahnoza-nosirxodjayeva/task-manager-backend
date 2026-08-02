@@ -1,6 +1,15 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const { notifyAdmins } = require('../utils/telegram');
+
+const escapeHtml = (value = '') =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 
 const createToken = (userId) =>
   jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: '7d' });
@@ -30,9 +39,19 @@ const registerUser = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await User.create({
       name,
-      email,
+      email: email.toLowerCase(),
       password: hashedPassword,
     });
+
+    await notifyAdmins(
+      [
+        '🆕 <b>New user registered</b>',
+        '',
+        `<b>Name:</b> ${escapeHtml(user.name)}`,
+        `<b>Email:</b> ${escapeHtml(user.email)}`,
+        `<b>Role:</b> ${escapeHtml(user.role)}`,
+      ].join('\n')
+    );
 
     return res.status(201).json(formatUserResponse(user));
   } catch (error) {

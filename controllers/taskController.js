@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 const Task = require('../models/Task');
 const User = require('../models/User');
-const { sendTelegramNotification } = require('../utils/telegram');
+const { sendTelegramNotification, notifyAdmins } = require('../utils/telegram');
 
 const escapeHtml = (value = '') =>
   String(value)
@@ -21,7 +21,16 @@ const formatDeadline = (deadline) => {
 
 const createTask = async (req, res) => {
   try {
-    const { title, description, assignedTo, deadline } = req.body;
+    const { title, description, deadline } = req.body;
+    let { assignedTo } = req.body;
+
+    if (
+      !assignedTo ||
+      (typeof assignedTo === 'string' && !assignedTo.trim()) ||
+      !mongoose.isValidObjectId(assignedTo)
+    ) {
+      assignedTo = null;
+    }
 
     if (!title) {
       return res.status(400).json({ message: 'Task title is required.' });
@@ -34,6 +43,18 @@ const createTask = async (req, res) => {
       deadline,
       createdBy: req.user._id,
     });
+
+    const creator = await User.findById(req.user._id).select('name email');
+
+    await notifyAdmins(
+      [
+        '📦 <b>New task created</b>',
+        '',
+        `<b>Title:</b> ${escapeHtml(task.title)}`,
+        `<b>Created by:</b> ${escapeHtml(creator?.name || 'Unknown')}`,
+        `<b>Status:</b> ${escapeHtml(task.status)}`,
+      ].join('\n')
+    );
 
     if (assignedTo) {
       const assignedUser = await User.findById(assignedTo);
@@ -53,6 +74,7 @@ const createTask = async (req, res) => {
 
     return res.status(201).json(task);
   } catch (error) {
+    console.error('Task creation error:', error);
     return res.status(500).json({ message: 'Unable to create task.' });
   }
 };
@@ -79,6 +101,38 @@ const updateTask = async (req, res) => {
     const updates = Object.fromEntries(
       Object.entries(req.body).filter(([key]) => allowedFields.includes(key))
     );
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'assignedTo')) {
+      const assignedTo = updates.assignedTo;
+
+      if (assignedTo === undefined) {
+        delete updates.assignedTo;
+      } else if (
+        !assignedTo ||
+        (typeof assignedTo === 'string' && !assignedTo.trim()) ||
+        !mongoose.isValidObjectId(assignedTo)
+      ) {
+        updates.assignedTo = null;
+      }
+    }
+
+    if (Object.prototype.hasOwnProperty.call(updates, 'status')) {
+      if (typeof updates.status !== 'string') {
+        return res.status(400).json({ message: 'Invalid task status.' });
+      }
+
+      const normalizedStatus = updates.status
+        .trim()
+        .toLowerCase()
+        .replace(/[\s_]+/g, '-');
+      const allowedStatuses = ['pending', 'in-progress', 'completed'];
+
+      if (!allowedStatuses.includes(normalizedStatus)) {
+        return res.status(400).json({ message: 'Invalid task status.' });
+      }
+
+      updates.status = normalizedStatus;
+    }
 
     const task = await Task.findByIdAndUpdate(req.params.id, updates, {
       new: true,
@@ -111,6 +165,7 @@ const updateTask = async (req, res) => {
 
     return res.status(200).json(task);
   } catch (error) {
+    console.error('Update Task Error:', error);
     return res.status(500).json({ message: 'Unable to update task.' });
   }
 };
