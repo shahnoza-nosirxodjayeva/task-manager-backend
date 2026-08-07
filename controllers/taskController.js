@@ -72,6 +72,7 @@ const createTask = async (req, res) => {
       }
     }
 
+    await task.populate('assignedTo', 'name email');
     return res.status(201).json(task);
   } catch (error) {
     console.error('Task creation error:', error);

@@ -44,8 +44,13 @@ const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, async () => {
   console.log(`Server running on port ${PORT}`);
-  await launchBot(app);
+  try {
+    await launchBot(app);
+  } catch (error) {
+    console.error('Telegram bot could not be started:', error.message);
+  }
 });
+
 
 const shutdown = async (signal) => {
   console.log(`${signal} received. Shutting down gracefully...`);
