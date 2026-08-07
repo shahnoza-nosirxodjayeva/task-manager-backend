@@ -1,4 +1,5 @@
 const { Telegraf, session, Scenes } = require('telegraf');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const { getBotToken } = require('../utils/env');
 const { registerAdminCommands } = require('../bot/commands/adminCommands');
@@ -19,18 +20,16 @@ const registerBotHandlers = () => {
 
   bot.start(async (ctx) => {
     try {
-      const userId = ctx.payload || ctx.message?.text?.split(' ')[1];
+      const userId = String(
+        ctx.startPayload || ctx.payload || ctx.message?.text?.split(/\s+/)[1] || ''
+      ).trim();
       const telegramUserId = String(ctx.from.id);
       const telegramChatId = String(ctx.chat.id);
 
-      if (!userId) {
-        await ctx.reply('Welcome! Please link your account from the Task Manager Web App.', {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: 'ℹ️ How to link', callback_data: 'link_help' }],
-            ],
-          },
-        });
+      if (!userId || !mongoose.isValidObjectId(userId)) {
+        await ctx.reply(
+          "❌ Ulanish havolasi noto'g'ri yoki eskirgan. Saytdan yangi Telegram ulanish havolasini oching."
+        );
         return;
       }
 
@@ -42,12 +41,12 @@ const registerBotHandlers = () => {
 
       if (!user) {
         await ctx.reply(
-          'Unable to link this account. Please request a new link from the Task Manager Web App.'
+          "❌ Foydalanuvchi topilmadi. Saytdan yangi Telegram ulanish havolasini oching."
         );
         return;
       }
 
-      await ctx.reply('Your Telegram account has been successfully linked to Task Manager!', {
+      await ctx.reply("✅ Hisobingiz muvaffaqiyatli ulandi!", {
         reply_markup: {
           keyboard: [[{ text: '📋 My Tasks Info' }]],
           resize_keyboard: true,

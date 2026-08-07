@@ -19,9 +19,21 @@ const formatUserResponse = (user) => ({
   name: user.name,
   email: user.email,
   telegramChatId: user.telegramChatId,
+  isTelegramConnected: Boolean(user.telegramChatId),
   role: user.role,
   token: createToken(user._id),
 });
+
+const getCurrentUser = async (req, res) => {
+  return res.status(200).json({
+    _id: req.user._id,
+    name: req.user.name,
+    email: req.user.email,
+    telegramChatId: req.user.telegramChatId,
+    isTelegramConnected: Boolean(req.user.telegramChatId),
+    role: req.user.role,
+  });
+};
 
 const registerUser = async (req, res) => {
   try {
@@ -80,4 +92,4 @@ const loginUser = async (req, res) => {
   }
 };
 
-module.exports = { registerUser, loginUser };
+module.exports = { registerUser, loginUser, getCurrentUser };

@@ -153,10 +153,14 @@ const updateTask = async (req, res) => {
 
       if (assignedUser?.telegramChatId) {
         const message = [
-          "🔄 <b>Topshiriq holati o'zgardi!</b>",
+          Object.prototype.hasOwnProperty.call(updates, 'assignedTo')
+            ? '📌 <b>Topshiriq sizga biriktirildi!</b>'
+            : "🔄 <b>Topshiriq holati o'zgardi!</b>",
           '',
           `<b>Sarlavha:</b> ${escapeHtml(task.title)}`,
-          `<b>Yangi holat:</b> ${escapeHtml(task.status)}`,
+          `<b>Izoh:</b> ${escapeHtml(task.description || 'Mavjud emas')}`,
+          `<b>Muddati:</b> ${escapeHtml(formatDeadline(task.deadline))}`,
+          `<b>Holati:</b> ${escapeHtml(task.status)}`,
         ].join('\n');
 
         await sendTelegramNotification(assignedUser.telegramChatId, message);
